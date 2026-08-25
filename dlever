@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="ckb" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>سیستەمی گەیاندن - ئۆنڵاین</title>
+    
+    <!-- Supabase JS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --border-color: #ced4da;
+            --primary: #2b3a4a;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --info: #17a2b8;
+            --text: #333333;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hidden { display: none !important; }
+
+        .mobile-container {
+            width: 100%;
+            max-width: 400px;
+            height: 100%;
+            max-height: 750px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+
+        .input-group { margin-bottom: 12px; position: relative; }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            outline: none;
+            background: #fff;
+            font-size: 14px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            background-color: var(--primary);
+            color: #fff;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button:active { opacity: 0.8; }
+        .btn-success { background-color: var(--success); }
+        .btn-warning { background-color: var(--warning); color: #000; }
+        .btn-danger { background-color: var(--danger); }
+        .btn-info { background-color: var(--info); }
+
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f1f3f5;
+            padding: 10px 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .vertical-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .table-container {
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background: var(--card-bg);
+            border-radius: 6px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        th, td {
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        th { background: #f1f3f5; }
+
+        .checkbox-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            text-align: right;
+            max-height: 220px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #ownerSection, #ownerSection * { visibility: visible; }
+            #ownerSection { position: absolute; left: 0; top: 0; width: 100%; max-width: 100%; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Login Section -->
+    <div id="loginSection" class="mobile-container">
+        <div class="input-group">
+            <input type="text" id="loginDriver" list="driversList" placeholder="سایەق">
+        </div>
+        <div class="input-group">
+            <input type="password" id="loginPass" placeholder="پاسۆرد">
+        </div>
+        <div class="input-group" style="display: flex; justify-content: space-between; font-size: 12px;">
+            <label><input type="checkbox" onclick="togglePass()"> پشاندانی پاسۆڕد</label>
+        </div>
+        <button onclick="login()">چوونەژوورەوە</button>
+    </div>
+
+    <!-- Top Form Section (Driver) -->
+    <div id="topFormSection" class="mobile-container hidden">
+        <div class="header-bar">
+            <span id="displayDay"></span>
+            <span id="displayDriverName"></span>
+            <span id="displayDate"></span>
+        </div>
+
+        <div class="vertical-buttons">
+            <button class="btn-danger" onclick="openExitModal()">دەرچوون</button>
+            <button onclick="registerTime('kati_nazon')">گەشتنە ناوزۆن</button>
+            <button onclick="registerTime('kati_dere_zon')">دەرچوون لەزۆن</button>
+            <button onclick="registerTime('kati_gashtnawa')">گەشتنەوە</button>
+            <button class="btn-info" onclick="openInfoModal()">زانیارییەکان</button>
+            <button class="btn-warning" onclick="openDriverSettingsModal()">سێتینگ</button>
+            <button class="btn-danger" style="background:#5a6268;" onclick="logout()">لوگ ئاوت</button>
+        </div>
+    </div>
+
+    <!-- Exit Modal -->
+    <div id="exitModal" class="modal hidden">
+        <div class="modal-content">
+            <input type="text" id="fieldDabashkar" list="dabashkarList" placeholder="دابەشکار" onblur="validateInput(this, dabashkarList)">
+            <input type="text" id="fieldMandoub" list="mandoubList" placeholder="مەندوب" onblur="validateInput(this, mandoubList)">
+            <input type="text" id="fieldNawcha" list="nawchaList" placeholder="ناوچە" onblur="validateInput(this, nawchaList)">
+            <input type="text" id="fieldCarNum" list="carNumList" placeholder="ژمارەی سەیارە" onclick="this.select()" onblur="validateInput(this, carNumList)">
+            <input type="number" id="fieldWeight" placeholder="کێشی بار (kg)" onclick="this.select()">
+            <input type="number" id="fieldParts" placeholder="ژمارەی پارچە" onclick="this.select()">
+            <input type="number" id="fieldInvoice" placeholder="ژمارەی وەسڵ" onclick="this.select()">
+            
+            <div style="display: flex; gap: 8px; margin-top: 5px;">
+                <button id="btnSave" onclick="saveRecord()" class="btn-success">تۆمار</button>
+                <button id="btnEdit" onclick="enableEdit()" class="btn-warning hidden">چاککردن</button>
+                <button id="btnSecondLoad" onclick="openSecondLoad()" class="btn-info hidden">باری دووەم</button>
+                <button onclick="closeExitModal()" style="background:#6c757d;">گەڕانەوە</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Modal -->
+    <div id="infoModal" class="modal hidden">
+        <div class="modal-content">
+            <input type="number" id="fieldMrawij" placeholder="گەڕاوەی مڕەویج" onclick="this.select()">
+            <input type="number" id="fieldMoneyReturn" placeholder="پاری هاتنەوە : بەدینار" onclick="this.select()">
+            <div style="display: flex; gap: 8px;">
+                <button onclick="saveInfoData()" class="btn-success">تۆمار</button>
+                <button onclick="closeInfoModal()" style="background:#6c757d;">داخستن</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Driver Settings Modal -->
+    <div id="driverSettingsModal" class="modal hidden">
+        <div class="modal-content">
+            <input type="password" id="oldDriverPass" placeholder="پاسۆردی کۆن">
+            <input type="password" id="newDriverPass" placeholder="پاسۆردی نوێ">
+            <div style="display: flex; gap: 8px;">
+                <button onclick="changeDriverPassword()" class="btn-success">گۆڕین</button>
+                <button onclick="closeDriverSettingsModal()" style="background:#6c757d;">داخستن</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Owner Dashboard Section -->
+    <div id="ownerSection" class="mobile-container hidden" style="max-width: 98%; max-height: 98%;">
+        <div class="header-bar no-print" style="flex-wrap: wrap; gap: 8px;">
+            <span>ئۆنەر (سیستەمی ئۆنڵاین)</span>
+            <div style="display: flex; gap: 5px; align-items: center;">
+                <label style="font-size: 11px;">from:</label>
+                <input type="date" id="filterFromDate" onchange="fetchAndRenderData()" style="padding: 4px; font-size: 11px;">
+                <label style="font-size: 11px;">to:</label>
+                <input type="date" id="filterToDate" onchange="fetchAndRenderData()" style="padding: 4px; font-size: 11px;">
+            </div>
+            <div style="display: flex; gap: 5px;">
+                <button onclick="openSettingsModal()" style="width: auto; padding: 5px 10px;">سێتینگ</button>
+                <button onclick="openReportModal()" class="btn-info" style="width: auto; padding: 5px 10px;">پرێنتکردن</button>
+                <button onclick="openActionLogModal()" class="btn-warning" style="width: auto; padding: 5px 10px;">تۆماری کردار</button>
+                <button class="btn-danger" onclick="logout()" style="width: auto; padding: 5px 10px;">لوگ ئاوت</button>
+            </div>
+        </div>
+        <div class="table-container">
+            <table id="mainTable">
+                <thead>
+                    <tr>
+                        <th data-col="0">ژمارە</th>
+                        <th data-col="1">سایەق</th>
+                        <th data-col="2">دابەشکار</th>
+                        <th data-col="3">مەندوب</th>
+                        <th data-col="4">کاتی دەرچوون</th>
+                        <th data-col="5">کاتی ناو زۆن</th>
+                        <th data-col="6">کاتی دەرێی زۆن</th>
+                        <th data-col="7">کاتی گەشتنەوە</th>
+                        <th data-col="8">کۆی کات</th>
+                        <th data-col="9">ژمارەی سەیارە</th>
+                        <th data-col="10">ژمارەی پارچە</th>
+                        <th data-col="11">ژمارەی وەسڵ</th>
+                        <th data-col="12">گەڕاوەی مڕەویج</th>
+                        <th data-col="13">پاری هاتنەوە : بەدینار</th>
+                        <th data-col="14">کێشی بار</th>
+                        <th data-col="15">کۆی ماندوو بوو</th>
+                        <th data-col="16">بەروار</th>
+                    </tr>
+                </thead>
+                <tbody id="dbTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal hidden">
+        <div class="modal-content">
+            <button onclick="openAddNamesModal()" class="btn-info">زیادکردنی ناوەکان</button>
+            <button onclick="openAddCarNumModal()" class="btn-info">زیادکردنی ژمارەی سەیارە</button>
+            <button onclick="openColumnsModal()" class="btn-info">ڕیزەکان</button>
+            <button onclick="closeSettingsModal()" class="btn-danger" style="margin-top: 10px;">داخستن</button>
+        </div>
+    </div>
+
+    <!-- Add Names Modal -->
+    <div id="addNamesModal" class="modal hidden">
+        <div class="modal-content">
+            <input type="text" id="newNameInput" placeholder="ناو">
+            <select id="targetListSelect" onchange="checkDriverSelection(); renderSelectedCategoryList();">
+                <option value="dabashkar">ناوی دابەشکار</option>
+                <option value="mandoub">ناوی مەندووب</option>
+                <option value="nawcha">ناوچەکان</option>
+                <option value="driver">ناوی سایەق</option>
+            </select>
+            <input type="password" id="newDriverPassInput" placeholder="پاسۆرد" class="hidden">
+            <div id="categoryPreviewList" style="max-height: 120px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; font-size: 12px; border-radius: 4px;"></div>
+            <div style="display: flex; gap: 8px; margin-top: 5px;">
+                <button onclick="addNewName()" class="btn-success">تۆمار</button>
+                <button onclick="closeAddNamesModal()" class="btn-danger">داخستن</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Car Modal -->
+    <div id="addCarNumModal" class="modal hidden">
+        <div class="modal-content">
+            <input type="number" id="newCarNumInput" placeholder="ژمارەی سەیارە">
+            <div style="display: flex; gap: 8px;">
+                <button onclick="addNewCarNumber()" class="btn-success">تۆمار</button>
+                <button onclick="closeAddCarNumModal()" class="btn-danger">داخستن</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Columns Modal -->
+    <div id="columnsModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="checkbox-list" id="columnsList"></div>
+            <button onclick="closeColumnsModal()" class="btn-success" style="margin-top: 10px;">داخستن</button>
+        </div>
+    </div>
+
+    <!-- Action Log Modal -->
+    <div id="actionLogModal" class="modal hidden">
+        <div class="modal-content">
+            <div id="actionLogList" style="max-height: 300px; overflow-y: auto; font-size: 12px; text-align: right; border: 1px solid #ccc; padding: 10px; border-radius: 6px;"></div>
+            <button onclick="closeActionLogModal()" class="btn-danger" style="margin-top: 10px;">داخستن</button>
+        </div>
+    </div>
+
+    <!-- Datalists -->
+    <datalist id="driversList"></datalist>
+    <datalist id="dabashkarList"></datalist>
+    <datalist id="mandoubList"></datalist>
+    <datalist id="nawchaList"></datalist>
+    <datalist id="carNumList"></datalist>
+
+    <script>
+        // --- Supabase Config ---
+        const SUPABASE_URL = "https://rivwvzdjfotkjhpuwuaf.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_Chpd_Xgyls9HJQJl3TPV3A_UMojpoGA";
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const driversData = [
+            { name: 'ئۆنەر', pass: '0', code: 'DRV-000' }, { name: 'احمد رمضان', pass: '12', code: 'DRV-001' },
+            { name: 'احمد کمال', pass: '10', code: 'DRV-002' }, { name: 'احمد نسردین', pass: '11', code: 'DRV-003' },
+            { name: 'بیلال فارس', pass: '3', code: 'DRV-004' }, { name: 'پارس', pass: '4', code: 'DRV-005' },
+            { name: 'دیار', pass: '2', code: 'DRV-006' }, { name: 'ڕیان', pass: '8', code: 'DRV-007' },
+            { name: 'رەزا', pass: '9', code: 'DRV-008' }, { name: 'زریان', pass: '5', code: 'DRV-009' },
+            { name: 'سلام', pass: '6', code: 'DRV-010' }, { name: 'سەمیع', pass: '7', code: 'DRV-011' },
+            { name: 'کاروان', pass: '1', code: 'DRV-012' }, { name: 'محمد ابراهیم', pass: '14', code: 'DRV-013' },
+            { name: 'محمد اسماعیل', pass: '15', code: 'DRV-014' }, { name: 'میرخان', pass: '13', code: 'DRV-015' },
+            { name: 'هیوا', pass: '18', code: 'DRV-016' }, { name: 'هەمزە', pass: '16', code: 'DRV-017' },
+            { name: 'هەوراز', pass: '17', code: 'DRV-018' }
+        ];
+
+        let dabashkarList = ['ابراهیم محسن', 'اسعد بلال', 'اسماعیل شاخەوان', 'اسماعیل علی', 'امیر', 'بڕوا', 'بەڵێن', 'سمیع', 'سەفین', 'سەرمەد', 'شایان', 'عمر', 'محمد عبدالرحمان', 'هیمداد', 'هۆشەنگ', 'ئومێد', 'ڕەوەز'];
+        let mandoubList = ['ابراهیم', 'حسن', 'ڕابەر', 'ڕێژوان', 'زانا', 'عبد الصمد', 'عبدواللە', 'عەلی', 'قاسم', 'محمد اسوەد', 'مووبارەك', 'ئاری', 'ئاکام'];
+        let nawchaList = ['ئازادی', 'ئاری', 'ئومێد', 'ئیسکان', 'باداوە', 'باداوەی نوێ', 'بەختیاری', 'بەحرکە', 'بنەسڵاوە', 'پیرزین', 'تەعجیل', 'تەیراوە', 'حی شوڕتە', 'چۆمان', 'خانەقا', 'خەبات', 'درۆسەکەی ٦٠ مەتری', 'ڕاستی', 'ڕاستی نوێ', 'ڕانیە (گەڕەکی ڕانیە لە هەولێر)', 'ڕواندز', 'ڕۆشنبیری', 'زانكۆ', 'ژین', 'سەربەستی (٥٠مەتری)', 'سەیداوە', 'سۆران', 'شەقڵاوە', 'شۆڕش', 'عەنکاوە', 'عەرەبان', 'فرمانبەران', 'کسنەزان', 'کوران', 'کوردسات', 'کۆیە', 'مامۆستایان', 'منارە', 'مەلا ئۆمەر', 'مەخموور', 'مێرگەسۆر', 'نازناز', 'نەورۆز', 'نەورۆزی نوێ', 'نزارکێ', 'وەزارەت'];
+        let carNumList = ['24127', '21210', '20612', '27515', '28366', '39115', '39325', '24683', '20636', '24867', '25498', '29957', '28756', '27640', '25721', '23756', '29901', '36981', '94640', '20396', '20711', '22698', '13841', '24548', '61462', '28545', '12650', '10287', '13734', '80444', '11854', '11890'];
+
+        const columnNames = [
+            "ژمارە", "سایەق", "دابەشکار", "مەندوب", "کاتی دەرچوون", 
+            "کاتی ناو زۆن", "کاتی دەرێی زۆن", "کاتی گەشتنەوە", "کۆی کات", 
+            "ژمارەی سەیارە", "ژمارەی پارچە", "ژمارەی وەسڵ", "گەڕاوەی مڕەویج", 
+            "پاری هاتنەوە : بەدینار", "کێشی بار", "کۆی ماندوو بوو", "بەروار"
+        ];
+
+        let hiddenColumns = [];
+        let currentUser = null;
+        let localDatabase = [];
+        let loadCounter = 1;
+
+        window.onload = function() {
+            populateDataLists();
+            setupDateHeader();
+            buildColumnsCheckboxList();
+        };
+
+        async function logAction(description) {
+            let userStr = currentUser ? currentUser.name : 'سیستەم';
+            try {
+                await _supabase.from('action_logs').insert([{ user_name: userStr, action_text: description }]);
+            } catch (e) { console.error('Error logging:', e); }
+        }
+
+        function populateDataLists() {
+            fillDatalist('driversList', driversData.map(d => d.name));
+            fillDatalist('dabashkarList', dabashkarList);
+            fillDatalist('mandoubList', mandoubList);
+            fillDatalist('nawchaList', nawchaList);
+            fillDatalist('carNumList', carNumList);
+        }
+
+        function fillDatalist(id, array) {
+            const list = document.getElementById(id);
+            list.innerHTML = '';
+            array.forEach(item => {
+                let option = document.createElement('option');
+                option.value = item;
+                list.appendChild(option);
+            });
+        }
+
+        function setupDateHeader() {
+            const now = new Date();
+            const days = ['یەکشەممە', 'دووشەممە', 'سێشەممە', 'چوارشەممە', 'پێنجشەممە', 'هەینی', 'شەممە'];
+            document.getElementById('displayDay').innerText = days[now.getDay()];
+            document.getElementById('displayDate').innerText = now.toISOString().split('T')[0];
+        }
+
+        function togglePass() {
+            let p = document.getElementById('loginPass');
+            p.type = p.type === 'password' ? 'text' : 'password';
+        }
+
+        async function login() {
+            let name = document.getElementById('loginDriver').value;
+            let pass = document.getElementById('loginPass').value;
+
+            let user = driversData.find(d => d.name === name && d.pass === pass);
+            if (user) {
+                currentUser = user;
+                await logAction('چووە ژوورەوە');
+                document.getElementById('loginSection').classList.add('hidden');
+
+                if (user.name === 'ئۆنەر') {
+                    document.getElementById('ownerSection').classList.remove('hidden');
+                    await fetchAndRenderData();
+                } else {
+                    document.getElementById('topFormSection').classList.remove('hidden');
+                    document.getElementById('displayDriverName').innerText = user.name;
+                    await fetchAndRenderData();
+                }
+            } else {
+                alert('ناو یان پاسۆرد هەڵەیە!');
+            }
+        }
+
+        function logout() {
+            logAction('دەروون لە سیستەم (Log Out)');
+            currentUser = null;
+            loadCounter = 1;
+            document.getElementById('topFormSection').classList.add('hidden');
+            document.getElementById('ownerSection').classList.add('hidden');
+            document.getElementById('loginSection').classList.remove('hidden');
+        }
+
+        function validateInput(inputEl, list) {
+            if (inputEl.value && !list.includes(inputEl.value)) {
+                alert('تکایە تەنها ناوی ناو لیستەکە دیاری بکە!');
+                inputEl.value = '';
+            }
+        }
+
+        async function fetchAndRenderData() {
+            let query = _supabase.from('delivery_records').select('*');
+            let { data, error } = await query;
+            
+            if (error) {
+                console.error(error);
+                return;
+            }
+
+            localDatabase = data || [];
+            renderTable();
+        }
+
+        function openExitModal() {
+            document.getElementById('exitModal').classList.remove('hidden');
+            let existingRecord = localDatabase.find(r => r.driver_code === currentUser.code && r.load_index === loadCounter);
+            
+            if (existingRecord) {
+                document.getElementById('fieldDabashkar').value = existingRecord.dabashkar || '';
+                document.getElementById('fieldMandoub').value = existingRecord.mandoub || '';
+                document.getElementById('fieldNawcha').value = existingRecord.nawcha || '';
+                document.getElementById('fieldCarNum').value = existingRecord.car_num || '';
+                document.getElementById('fieldWeight').value = existingRecord.weight || '';
+                document.getElementById('fieldParts').value = existingRecord.parts || '';
+                document.getElementById('fieldInvoice').value = existingRecord.invoice || '';
+
+                setInputsDisabled(true);
+                document.getElementById('btnSave').classList.add('hidden');
+                document.getElementById('btnEdit').classList.remove('hidden');
+                document.getElementById('btnSecondLoad').classList.remove('hidden');
+            } else {
+                setInputsDisabled(false);
+                document.getElementById('btnSave').classList.remove('hidden');
+                document.getElementById('btnEdit').classList.add('hidden');
+                document.getElementById('btnSecondLoad').classList.add('hidden');
+            }
+        }
+
+        function closeExitModal() {
+            document.getElementById('exitModal').classList.add('hidden');
+        }
+
+        function setInputsDisabled(disabled) {
+            document.querySelectorAll('#exitModal input').forEach(input => input.disabled = disabled);
+        }
+
+        async function saveRecord() {
+            let now = new Date();
+            let currentTimeStr = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
+
+            let displayDriverName = currentUser.name;
+            if (loadCounter === 2) displayDriverName += ' دوو';
+            if (loadCounter === 3) displayDriverName += ' سێ';
+            if (loadCounter >= 4) displayDriverName += ` ${loadCounter}`;
+
+            let rec = localDatabase.find(r => r.driver_code === currentUser.code && r.load_index === loadCounter);
+            
+            let payload = {
+                driver_code: currentUser.code,
+                driver_name: displayDriverName,
+                load_index: loadCounter,
+                dabashkar: document.getElementById('fieldDabashkar').value,
+                mandoub: document.getElementById('fieldMandoub').value,
+                nawcha: document.getElementById('fieldNawcha').value,
+                car_num: document.getElementById('fieldCarNum').value,
+                weight: Number(document.getElementById('fieldWeight').value) || 0,
+                parts: Number(document.getElementById('fieldParts').value) || 0,
+                invoice: Number(document.getElementById('fieldInvoice').value) || 0,
+            };
+
+            if (rec) {
+                payload.is_edited = true;
+                await _supabase.from('delivery_records').update(payload).eq('id', rec.id);
+                await logAction(`دەستکاری داتاکانی کرد (چاککردن)`);
+            } else {
+                payload.kati_derchun = currentTimeStr;
+                await _supabase.from('delivery_records').insert([payload]);
+                await logAction(`داتای دەرچوونی تۆمارکرد (سەیارە: ${payload.car_num})`);
+            }
+
+            await fetchAndRenderData();
+            closeExitModal();
+        }
+
+        function enableEdit() {
+            setInputsDisabled(false);
+            document.getElementById('btnSave').classList.remove('hidden');
+            document.getElementById('btnEdit').classList.add('hidden');
+        }
+
+        function openSecondLoad() {
+            loadCounter++;
+            document.querySelectorAll('#exitModal input').forEach(input => input.value = '');
+            setInputsDisabled(false);
+            document.getElementById('btnSave').classList.remove('hidden');
+            document.getElementById('btnEdit').classList.add('hidden');
+            document.getElementById('btnSecondLoad').classList.add('hidden');
+            logAction(`فۆڕمی باری نوێی کردەوە (بار: ${loadCounter})`);
+        }
+
+        async function registerTime(timeType) {
+            let rec = localDatabase.slice().reverse().find(r => r.driver_code === currentUser.code);
+            if (rec) {
+                let now = new Date();
+                let currentTimeStr = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
+                
+                let updateObj = {};
+                updateObj[timeType] = currentTimeStr;
+
+                await _supabase.from('delivery_records').update(updateObj).eq('id', rec.id);
+                await logAction(`کاتی [${timeType}] تۆمارکرد: ${currentTimeStr}`);
+                await fetchAndRenderData();
+                alert('تۆمارکرا!');
+            } else {
+                alert('تکایە سەرەتا دەرچوون پڕبکەرەوە!');
+            }
+        }
+
+        function openInfoModal() {
+            document.getElementById('infoModal').classList.remove('hidden');
+            let rec = localDatabase.slice().reverse().find(r => r.driver_code === currentUser.code);
+            if(rec) {
+                document.getElementById('fieldMrawij').value = rec.mrawij || '';
+                document.getElementById('fieldMoneyReturn').value = rec.money_return || '';
+            }
+        }
+
+        function closeInfoModal() { document.getElementById('infoModal').classList.add('hidden'); }
+
+        async function saveInfoData() {
+            let rec = localDatabase.slice().reverse().find(r => r.driver_code === currentUser.code);
+            if(rec) {
+                let mrawij = Number(document.getElementById('fieldMrawij').value) || 0;
+                let moneyReturn = Number(document.getElementById('fieldMoneyReturn').value) || 0;
+
+                await _supabase.from('delivery_records').update({
+                    mrawij: mrawij,
+                    money_return: moneyReturn
+                }).eq('id', rec.id);
+
+                await logAction('زانیارییەکانی (مڕەویج/پاری هاتنەوە) نوێکردەوە');
+                await fetchAndRenderData();
+                closeInfoModal();
+                alert('زانیارییەکان تۆمارکران!');
+            } else {
+                alert('تکایە سەرەتا دەرچوون پڕبکەرەوە!');
+            }
+        }
+
+        function openDriverSettingsModal() { document.getElementById('driverSettingsModal').classList.remove('hidden'); }
+        function closeDriverSettingsModal() { document.getElementById('driverSettingsModal').classList.add('hidden'); }
+
+        function changeDriverPassword() {
+            let oldP = document.getElementById('oldDriverPass').value;
+            let newP = document.getElementById('newDriverPass').value;
+
+            if (currentUser && currentUser.pass === oldP && newP) {
+                currentUser.pass = newP;
+                logAction('پاسۆردی خۆی گۆڕی');
+                alert('پاسۆردەکەت بەسەرکەوتوویی گۆڕدرا!');
+                closeDriverSettingsModal();
+                document.getElementById('oldDriverPass').value = '';
+                document.getElementById('newDriverPass').value = '';
+            } else {
+                alert('پاسۆردی کۆن هەڵەیە یان پاسۆردی نوێ بەتاڵە!');
+            }
+        }
+
+        function calculateTotalTime(start, end) {
+            if (!start || !end) return '-';
+            let [h1, m1] = start.split(':').map(Number);
+            let [h2, m2] = end.split(':').map(Number);
+            let diff = (h2 * 60 + m2) - (h1 * 60 + m1);
+            if (diff < 0) diff += 1440;
+            return Math.floor(diff / 60) + ':' + String(diff % 60).padStart(2, '0');
+        }
+
+        function calculateManduu(rec) {
+            let car = Number(rec.car_num) || 0;
+            let pcs = Number(rec.parts) || 0;
+            let inv = Number(rec.invoice) || 0;
+            let w = Number(rec.weight) || 0;
+            let mrw = Number(rec.mrawij) || 0;
+            let money = Number(rec.money_return) || 0;
+
+            let total = (car * 0.001) + (pcs * 0.5) + (inv * 1.5) + (w * 0.05) + (mrw * 0.2) + (money * 0.0001);
+            return Math.min(Math.round(total), 100) + '%';
+        }
+
+        function renderTable() {
+            let tbody = document.getElementById('dbTableBody');
+            tbody.innerHTML = '';
+
+            let fromD = document.getElementById('filterFromDate').value;
+            let toD = document.getElementById('filterToDate').value;
+
+            let filteredData = localDatabase.filter(rec => {
+                if (currentUser && currentUser.name !== 'ئۆنەر' && rec.driver_code !== currentUser.code) return false;
+                if (fromD && rec.created_at < fromD) return false;
+                if (toD && rec.created_at > toD) return false;
+                return true;
+            });
+
+            filteredData.forEach((rec, index) => {
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td data-col="0">${index + 1}</td>
+                    <td data-col="1">${rec.driver_name} ${rec.is_edited ? '✏️' : ''}</td>
+                    <td data-col="2">${rec.dabashkar || ''}</td>
+                    <td data-col="3">${rec.mandoub || ''}</td>
+                    <td data-col="4">${rec.kati_derchun || ''}</td>
+                    <td data-col="5">${rec.kati_nazon || ''}</td>
+                    <td data-col="6">${rec.kati_dere_zon || ''}</td>
+                    <td data-col="7">${rec.kati_gashtnawa || ''}</td>
+                    <td data-col="8">${calculateTotalTime(rec.kati_derchun, rec.kati_gashtnawa)}</td>
+                    <td data-col="9">${rec.car_num || ''}</td>
+                    <td data-col="10">${rec.parts || 0}</td>
+                    <td data-col="11">${rec.invoice || 0}</td>
+                    <td data-col="12">${rec.mrawij || '-'}</td>
+                    <td data-col="13">${rec.money_return || '-'}</td>
+                    <td data-col="14">${rec.weight || 0} kg</td>
+                    <td data-col="15">${calculateManduu(rec)}</td>
+                    <td data-col="16">${rec.created_at || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            applyColumnVisibility();
+        }
+
+        function openSettingsModal() { document.getElementById('settingsModal').classList.remove('hidden'); }
+        function closeSettingsModal() { document.getElementById('settingsModal').classList.add('hidden'); }
+
+        function openAddNamesModal() {
+            closeSettingsModal();
+            document.getElementById('addNamesModal').classList.remove('hidden');
+            checkDriverSelection();
+            renderSelectedCategoryList();
+        }
+        function closeAddNamesModal() { document.getElementById('addNamesModal').classList.add('hidden'); }
+
+        function openAddCarNumModal() {
+            closeSettingsModal();
+            document.getElementById('addCarNumModal').classList.remove('hidden');
+        }
+        function closeAddCarNumModal() { document.getElementById('addCarNumModal').classList.add('hidden'); }
+
+        function checkDriverSelection() {
+            let target = document.getElementById('targetListSelect').value;
+            let passInput = document.getElementById('newDriverPassInput');
+            if (target === 'driver') {
+                passInput.classList.remove('hidden');
+            } else {
+                passInput.classList.add('hidden');
+            }
+        }
+
+        function renderSelectedCategoryList() {
+            let target = document.getElementById('targetListSelect').value;
+            let container = document.getElementById('categoryPreviewList');
+            let list = [];
+
+            if (target === 'dabashkar') list = dabashkarList;
+            if (target === 'mandoub') list = mandoubList;
+            if (target === 'nawcha') list = nawchaList;
+            if (target === 'driver') list = driversData.map(d => `${d.name} (${d.code})`);
+
+            container.innerHTML = list.map(item => `<div>• ${item}</div>`).join('');
+        }
+
+        function addNewName() {
+            let name = document.getElementById('newNameInput').value;
+            let target = document.getElementById('targetListSelect').value;
+            let pass = document.getElementById('newDriverPassInput').value;
+
+            if (!name) return;
+
+            if (target === 'driver') {
+                if (!pass) {
+                    alert('تکایە پاسۆرد بنووسە!');
+                    return;
+                }
+                let newCode = 'DRV-' + String(driversData.length).padStart(3, '0');
+                driversData.push({ name: name, pass: pass, code: newCode });
+            }
+            if (target === 'dabashkar') dabashkarList.push(name);
+            if (target === 'mandoub') mandoubList.push(name);
+            if (target === 'nawcha') nawchaList.push(name);
+
+            logAction(`ناوی نوێی زیادکرد: ${name}`);
+            populateDataLists();
+            renderSelectedCategoryList();
+            document.getElementById('newNameInput').value = '';
+            document.getElementById('newDriverPassInput').value = '';
+        }
+
+        function addNewCarNumber() {
+            let num = document.getElementById('newCarNumInput').value;
+            if (!num) return;
+            carNumList.push(num);
+            logAction(`ژمارەی سەیارەی نوێی زیادکرد: ${num}`);
+            populateDataLists();
+            document.getElementById('newCarNumInput').value = '';
+            closeAddCarNumModal();
+        }
+
+        function buildColumnsCheckboxList() {
+            let container = document.getElementById('columnsList');
+            container.innerHTML = '';
+            columnNames.forEach((colName, idx) => {
+                let div = document.createElement('div');
+                div.className = 'checkbox-item';
+                div.innerHTML = `
+                    <input type="checkbox" id="col_chk_${idx}" ${!hiddenColumns.includes(idx) ? 'checked' : ''} onchange="toggleColumn(${idx})">
+                    <label for="col_chk_${idx}">${colName}</label>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function openColumnsModal() {
+            closeSettingsModal();
+            document.getElementById('columnsModal').classList.remove('hidden');
+        }
+        function closeColumnsModal() { document.getElementById('columnsModal').classList.add('hidden'); }
+
+        function toggleColumn(index) {
+            if (hiddenColumns.includes(index)) {
+                hiddenColumns = hiddenColumns.filter(i => i !== index);
+            } else {
+                hiddenColumns.push(index);
+            }
+            applyColumnVisibility();
+        }
+
+        function applyColumnVisibility() {
+            document.querySelectorAll('#mainTable [data-col]').forEach(el => {
+                let colIdx = parseInt(el.getAttribute('data-col'));
+                if (hiddenColumns.includes(colIdx)) {
+                    el.classList.add('hidden');
+                } else {
+                    el.classList.remove('hidden');
+                }
+            });
+        }
+
+        async function openActionLogModal() {
+            let { data, error } = await _supabase.from('action_logs').select('*').order('id', { ascending: false }).limit(50);
+            let list = document.getElementById('actionLogList');
+            
+            if (data) {
+                list.innerHTML = data.map(log => `
+                    <p style="margin-bottom: 5px; border-bottom: 1px #eee solid; padding-bottom: 2px;">
+                        [${new Date(log.created_at).toLocaleTimeString()}] <b>${log.user_name}</b>: ${log.action_text}
+                    </p>
+                `).join('');
+            }
+            document.getElementById('actionLogModal').classList.remove('hidden');
+        }
+
+        function closeActionLogModal() { document.getElementById('actionLogModal').classList.add('hidden'); }
+
+        function openReportModal() {
+            window.print();
+        }
+
+        // --- Realtime Database Listener ---
+        _supabase
+          .channel('schema-db-changes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_records' }, payload => {
+              fetchAndRenderData(); // ڕاستەوخۆ خشتەکە نوێ دەکاتەوە کاتێک داتای نوێ دێت
+          })
+          .subscribe();
+
+    </script>
+</body>
+</html>
